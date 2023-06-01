@@ -3,9 +3,12 @@ import subprocess as sp
 from sys import argv
 import hashlib
 
-ur_private_secret_key = argv[2]
+key = ''
 
-os.chdir(argv[1])
+def fprint(text):
+    global q
+    if q: return
+    print(text)
 
 def shash(text):
     try: text = text.encode()
@@ -16,35 +19,42 @@ def hash_files(dir):
     files = os.listdir(dir)
     write = []
     for file in files:
+        file = str(file)
         path = f'{dir}/{file}'
-        print(file)
+        fprint(file)
         if file.endswith('.integrity'):
             os.remove(file)
-            print(f'Deleted already existing integrity file. [{file}]')
+            fprint(f'Deleted already existing integrity file. [{file}]')
             continue
+        # Skip configuration files
+        if file.endswith(('.config','.conf','.yaml','.properties','.json','.ini','.toml','.xml')): continue
         if file.count('.') == 0:
-            print('Folder detected! looping in folder..')
+            fprint('Folder detected! looping in folder..')
             write.extend(hash_files(path))
-        print(path)
+        fprint(path)
         try: content = open(path,'rb').read()
         except PermissionError:
-            print('Permission denied! Continuing...')
+            fprint('Permission denied! Continuing...')
             continue
         hashed = shash(content)
         line = f'{file}={hashed}\n'
         write.append(line)
     return write
 
-write = hash_files(argv[1])
+def gen(path:str,secret_key:str,silent=True):
+    global key,q
+    key = secret_key
+    q = silent
+    
+    os.chdir(path)
+    write = hash_files(path)
 
-key = shash(''.join(write))
+    key = shash(''.join(write))
 
-a = ''.join(write)
+    write.insert(0,f'KEY={key}\n')
 
-print(f"{a=}")
+    with open('file.integrity', 'w+') as file:
+        file.writelines(write)
+    return 'Generated.'
 
-write.insert(0,f'KEY={key}\n')
-
-with open('file.integrity', 'w+') as file:
-    file.writelines(write)
-
+if __name__ == '__main__': gen(argv[1],silent=False)
