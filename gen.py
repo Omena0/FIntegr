@@ -37,7 +37,7 @@ def hash_files(dir):
 
 write = hash_files(argv[1])
 
-key = shash(''.join(write)+'\n')
+key = shash(''.join(write))
 
 a = ''.join(write)
 

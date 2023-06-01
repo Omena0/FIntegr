@@ -49,13 +49,12 @@ key = shash(''.join(write)+'\n')
 
 write.insert(0,f'KEY={key}\n')
 
-
 with open('file.integrity', 'r') as file:
     lines = file.readlines()
-    keyhash = lines[0].split('=')[1]
+    keyhash = int(lines[0].split('=')[1].replace('\n', ''))
     lines[0] = ''
     truehash = shash(''.join(lines))
-    comp = f'{keyhash=}, {truehash=}, {"".join(lines)=}\n'
+    comp = f'{keyhash=}, {truehash=}'
     if keyhash != truehash:
         intact = False
         key_intact = False
