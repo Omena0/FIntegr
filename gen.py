@@ -1,56 +1,50 @@
 import os
 import subprocess as sp
 from sys import argv
+import hashlib
 
 ur_private_secret_key = argv[2]
 
-files = os.listdir(argv[1])
-
 os.chdir(argv[1])
 
-contents = []
+def shash(text):
+    try: text = text.encode()
+    except: pass
+    return int(hashlib.sha256(text).hexdigest()[:16], 16)-2**63
 
-intact = True
+def hash_files(dir):
+    files = os.listdir(dir)
+    write = []
+    for file in files:
+        path = f'{dir}/{file}'
+        print(file)
+        if file.endswith('.integrity'):
+            os.remove(file)
+            print(f'Deleted already existing integrity file. [{file}]')
+            continue
+        if file.count('.') == 0:
+            print('Folder detected! looping in folder..')
+            write.extend(hash_files(path))
+        print(path)
+        try: content = open(path,'rb').read()
+        except PermissionError:
+            print('Permission denied! Continuing...')
+            continue
+        hashed = shash(content)
+        line = f'{file}={hashed}\n'
+        write.append(line)
+    return write
 
-def shash(text,seed:str=598225):
-    seed = str(seed)
-    if len(seed) > 9:
-        seed = str(round(int(seed) / (10 * len(seed)-8)))
-    text = text.replace('\n','\\n')
-    cmd = ['python', '-c', f'print(hash("{text}"),end="")']
-    p = sp.Popen(cmd, env={'PYTHONHASHSEED': seed},text=True,stdout=sp.PIPE)
-    return p.communicate()[0]
+write = hash_files(argv[1])
 
-for file in files:
-    if file.endswith('.FIntegr') or file.endswith('.integrity'):
-        print('Integrity file already exists! Deleted.')
-        os.remove(file)
-    else:
-        contents.append(open(file,'r').read())
+key = shash(''.join(write)+'\n')
 
-# Gen hashes
-hashes = []
+a = ''.join(write)
 
-config = open('file.integrity','a+')
-for i in contents:
-    hashed = str(shash(i))
-    print(f'{hashed=}')
-    hashes.append(hashed+'\n')
-    
-config.close()
+print(f"{a=}")
 
+write.insert(0,f'KEY={key}\n')
 
-config = open('file.integrity','w')
-
-key = shash(ur_private_secret_key+''.join(hashes))
-
-write = []
-write.append(f'KEY={key}\n')
-
-for i in hashes:
-    write.append(i)
-
-
-config.writelines(write)
-
+with open('file.integrity', 'w+') as file:
+    file.writelines(write)
 
